@@ -2,10 +2,7 @@ package it.vitalegi.haranalyzer;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.LongNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.fasterxml.jackson.databind.node.TextNode;
+import com.fasterxml.jackson.databind.node.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
@@ -47,9 +44,22 @@ public class AppRunner implements CommandLineRunner {
             writer.append(headers.stream().collect(Collectors.joining(SEPARATOR, "", "\n")));
             export(writer, result, headers);
             log.info("Export done, {} entries", result.size());
-        } catch (IOException e) {
-            throw new RuntimeException(e);
         }
+
+        files = getFiles();
+        ArrayNode actions = files.map(this::extractInfo).map(fileContent -> {
+            applyRelativeTime(fileContent);
+            return identifyActions(fileContent, (ArrayNode) readFile(Paths.get("config.json")));
+        }).reduce(this.newArray(), ArrayNode::addAll);
+
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter("actions.csv"))) {
+            log.info("Retrieve actions");
+            List<String> headers = getHeaders(actions);
+            writer.append(headers.stream().collect(Collectors.joining(SEPARATOR, "", "\n")));
+            export(writer, actions, headers);
+            log.info("Export done, {} actions", actions.size());
+        }
+
         log.info("End");
     }
 
@@ -78,6 +88,58 @@ public class AppRunner implements CommandLineRunner {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    protected ArrayNode identifyActions(ArrayNode entries, ArrayNode actionRules) {
+        ArrayNode actionInstances = newArray();
+        for (int i = 0; i < actionRules.size(); i++) {
+            actionInstances.addAll(identifyAction(entries, actionRules.get(i)));
+        }
+        return actionInstances;
+    }
+
+    protected ArrayNode identifyAction(ArrayNode entries, JsonNode actionRule) {
+        ArrayNode actionInstances = newArray();
+        for (int i = 0; i < entries.size(); i++) {
+            JsonNode startingEntry = entries.get(i);
+            if (matchRule(startingEntry, actionRule.get("firstRequest"))) {
+                for (int j = i; j < entries.size(); j++) {
+                    JsonNode endingEntry = entries.get(j);
+                    if (matchRule(endingEntry, actionRule.get("lastRequest"))) {
+                        long startTime = startingEntry.get("startMs_rel").asLong();
+                        long endTime = endingEntry.get("endMs_rel").asLong();
+                        long diff = endTime - startTime;
+                        log.info("Found action {}, duration {}ms", actionRule.get("name").asText(), diff);
+                        ObjectNode actionInstance = newObject();
+                        actionInstance.set("name", actionRule.get("name"));
+                        actionInstance.set("duration", new LongNode(diff));
+                        actionInstance.set("pageref", startingEntry.get("pageref"));
+                        actionInstance.set("startedDateTime", startingEntry.get("startedDateTime"));
+                        actionInstance.set("calls", new IntNode(j-i));
+                        actionInstances.add(actionInstance);
+                        break;
+                    }
+                }
+                break;
+            }
+        }
+        return actionInstances;
+    }
+
+    protected boolean matchRule(JsonNode entry, JsonNode rule) {
+        Iterator<String> fields = rule.fieldNames();
+        while (fields.hasNext()) {
+            String field = fields.next();
+            if (!entry.has(field)) {
+                return false;
+            }
+            String entryValue = entry.get(field).asText();
+            String ruleValue = rule.get(field).asText();
+            if (!entryValue.equals(ruleValue)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     protected void enrichEntries(ArrayNode pages, ArrayNode entries, Path file) {

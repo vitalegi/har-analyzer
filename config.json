@@ -1,0 +1,11 @@
+[
+  {
+    "name": "Login page is loaded",
+    "firstRequest": {
+      "url": "sample"
+    },
+    "lastRequest": {
+      "url": "sample"
+    }
+  }
+]

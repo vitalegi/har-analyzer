@@ -32,3 +32,5 @@ build/
 ### VS Code ###
 .vscode/
 har/
+actions.csv
+results.csv
