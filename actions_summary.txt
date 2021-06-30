@@ -1,0 +1,17 @@
+har\0629 1st account statements.har
+	har\0629 1st account statements.har: 1
+har\0629 1st balances.har
+	har\0629 1st balances.har: 1
+har\0629 1st landing the security dropdown list.har
+har\0629 1st load portal page after login.har
+har\0629 1st payment processing.har
+har\0629 1st transaction.har
+	har\0629 1st transaction.har: 1
+har\0629 1st transmitted payments.har
+	har\0629 1st transmitted payments.har: 1
+har\0629 2nd landing feitian security.har
+	har\0629 2nd landing feitian security.har: 1
+har\tmp\corporateportal.uat.unicreditgroup.cn.1.har
+	har\tmp\corporateportal.uat.unicreditgroup.cn.1.har: 1
+har\tmp\corporateportal.uat.unicreditgroup.cn.2.har
+	har\tmp\corporateportal.uat.unicreditgroup.cn.2.har: 1

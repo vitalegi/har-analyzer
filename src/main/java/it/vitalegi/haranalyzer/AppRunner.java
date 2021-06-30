@@ -17,11 +17,7 @@ import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.regex.Matcher;
+import java.util.*;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -61,13 +57,17 @@ public class AppRunner implements CommandLineRunner {
             export(writer, actions, headers);
             log.info("Export done, {} actions", actions.size());
         }
+        actionsSummary(getFiles(), actions);
 
         log.info("End");
     }
 
     protected Stream<Path> getFiles() {
         try {
-            return Files.list(Paths.get("./har/"));
+            return Files.walk(Paths.get("har/"))
+                    .filter(Files::isRegularFile)
+                    .filter(file -> file.getFileName().toString().endsWith("har"))
+                    ;
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -89,6 +89,30 @@ public class AppRunner implements CommandLineRunner {
             return mapper.readTree(file.toFile());
         } catch (IOException e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    protected void actionsSummary(Stream<Path> files, ArrayNode actions) throws IOException {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter("actions_summary.txt"))) {
+            files.forEach(file -> {
+                write(writer, file.toString());
+                write(writer, "\n");
+                Map<String, Integer> uniqueActions = new HashMap<>();
+                for (JsonNode action : actions) {
+                    String actionName = action.get("file").asText();
+                    if (actionName.equals(file.toString())) {
+                        if (!uniqueActions.containsKey(actionName)) {
+                            uniqueActions.put(actionName, 1);
+                        } else {
+                            uniqueActions.put(actionName, uniqueActions.get(actionName) + 1);
+                        }
+                    }
+                }
+                for (Map.Entry<String, Integer> entry : uniqueActions.entrySet()) {
+                    write(writer, "\t" + entry.getKey() + ": " + entry.getValue() + "\n");
+                }
+            });
+            log.info("Summary done");
         }
     }
 
@@ -117,7 +141,8 @@ public class AppRunner implements CommandLineRunner {
                         actionInstance.set("duration", new LongNode(diff));
                         actionInstance.set("pageref", startingEntry.get("pageref"));
                         actionInstance.set("startedDateTime", startingEntry.get("startedDateTime"));
-                        actionInstance.set("calls", new IntNode(j-i));
+                        actionInstance.set("calls", new IntNode(j - i));
+                        actionInstance.set("file", startingEntry.get("file"));
                         actionInstances.add(actionInstance);
                         break;
                     }
@@ -154,7 +179,7 @@ public class AppRunner implements CommandLineRunner {
                 obj.set("pageStartMs", new LongNode(toMillis(ref.get("startedDateTime").asText())));
                 obj.set("pageTitle", ref.get("title"));
             }
-            obj.set("file", new TextNode(file.getFileName().toString()));
+            obj.set("file", new TextNode(file.toString()));
         });
     }
 
