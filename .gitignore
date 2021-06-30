@@ -34,3 +34,5 @@ build/
 har/
 actions.csv
 results.csv
+actions_summary.txt
+config.json

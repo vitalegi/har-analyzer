@@ -99,8 +99,9 @@ public class AppRunner implements CommandLineRunner {
                 write(writer, "\n");
                 Map<String, Integer> uniqueActions = new HashMap<>();
                 for (JsonNode action : actions) {
-                    String actionName = action.get("file").asText();
-                    if (actionName.equals(file.toString())) {
+                    String actionFile = action.get("file").asText();
+                    String actionName = action.get("name").asText();
+                    if (actionFile.equals(file.toString())) {
                         if (!uniqueActions.containsKey(actionName)) {
                             uniqueActions.put(actionName, 1);
                         } else {
